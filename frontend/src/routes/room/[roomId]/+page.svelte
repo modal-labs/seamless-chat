@@ -1,7 +1,10 @@
 <script lang="ts">
+	import WaveSurfer from 'wavesurfer.js';
+
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { PUBLIC_BACKEND_URL } from '$env/static/public';
+	import { languageOptions } from '$lib';
 
 	$: roomId = $page.params.roomId;
 
@@ -15,28 +18,40 @@
 	}
 	let messages: Message[] = [];
 
-	let userId: string | null = null;
+	let userId: string | null = '';
+
+	let messageType: 'text' | 'audio' = 'text';
 	let message = '';
 	let connected = false;
 	let socket: WebSocket;
 	let lang = 'eng';
 	let userName = '';
 	let roomName = '';
-	const languageOptions = [
-		{
-			name: 'english',
-			code: 'eng'
-		},
-		{
-			name: 'mandarin chinese',
-			code: 'cmn'
-		}
-	];
+	let audioContainer: HTMLElement;
+	let wavesurfer: WaveSurfer | null = null;
+	$: if (audioContainer) {
+		wavesurfer = WaveSurfer.create({
+			container: audioContainer,
+			waveColor: 'gray',
+			normalize: true,
+			barWidth: 4,
+			barRadius: 4,
+			barGap: 2,
+			interact: false,
+			cursorWidth: 0,
+			height: 20
+		});
+	}
 
 	let audioContext: AudioContext;
 
+	let isRecording = false;
+	let mediaRecorder: MediaRecorder | null = null;
+	let audioChunks: Blob[] = [];
+
 	onMount(() => {
 		audioContext = new AudioContext();
+		setupMediaRecorder();
 	});
 
 	const connectSocket = () => {
@@ -101,11 +116,13 @@
 
 		await socket.send(
 			JSON.stringify({
-				message_type: 'text',
+				message_type: messageType,
 				content: message
 			})
 		);
 		message = '';
+		messageType = 'text';
+		isRecording = false;
 	};
 
 	const playAudio = (audio: number[]) => {
@@ -115,6 +132,52 @@
 		source.buffer = audioBuffer;
 		source.connect(audioContext.destination);
 		source.start();
+	};
+
+	const setupMediaRecorder = async () => {
+		try {
+			const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+			mediaRecorder = new MediaRecorder(stream);
+
+			mediaRecorder.onstart = () => {
+				wavesurfer?.empty();
+			};
+
+			mediaRecorder.ondataavailable = (event) => {
+				audioChunks.push(event.data);
+			};
+
+			mediaRecorder.onstop = () => {
+				const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+				const reader = new FileReader();
+
+				wavesurfer?.loadBlob(audioBlob);
+				wavesurfer?.play();
+
+				reader.onloadend = () => {
+					if (typeof reader.result === 'string') {
+						message = reader.result;
+					}
+				};
+				reader.readAsDataURL(audioBlob);
+
+				audioChunks = [];
+			};
+		} catch (error) {
+			console.error('Error setting up media recorder:', error);
+		}
+	};
+
+	const toggleRecording = () => {
+		if (!mediaRecorder) return;
+		if (isRecording) {
+			mediaRecorder.stop();
+		} else {
+			audioChunks = [];
+			mediaRecorder.start();
+			messageType = 'audio';
+		}
+		isRecording = !isRecording;
 	};
 </script>
 
@@ -127,8 +190,8 @@
 					type="text"
 					id="userName"
 					bind:value={userName}
-					class="text-sm border rounded p-2 w-full"
-					placeholder="enter your name..."
+					class="text-sm border rounded px-2 py-1 w-full"
+					placeholder="your name..."
 				/>
 			</div>
 			<div class="w-5/12">
@@ -136,7 +199,7 @@
 				<select
 					bind:value={lang}
 					id="language"
-					class="text-sm border rounded p-2 w-full appearance-none"
+					class="text-sm border rounded px-2 py-1 w-full appearance-none"
 				>
 					{#each languageOptions as language}
 						<option value={language.code}>{language.name}</option>
@@ -149,7 +212,7 @@
 		</button>
 	{:else}
 		<div class="text-center text-xl">{roomName}</div>
-		<div class="h-[400px] overflow-y-auto border rounded p-2 mb-2 mt-4">
+		<div class="h-[400px] overflow-y-auto border rounded p-2 mt-4">
 			{#each messages as message (message.messageId)}
 				<div
 					class={`mb-2 p-2 rounded ${message.userId === userId ? 'bg-blue-100 ml-auto mr-2' : 'bg-gray-100 mr-auto ml-2'}`}
@@ -164,23 +227,43 @@
 							class="bg-green-500 text-white px-2 py-1 rounded text-xs"
 							on:click={() => playAudio(message.audio)}
 						>
-							Play Audio
+							play audio
 						</button>
 					</div>
 					<p>{message.text}</p>
 				</div>
 			{/each}
 		</div>
-		<div class="flex gap-2">
-			<input
-				type="text"
-				id="message"
-				bind:value={message}
-				class="text-sm border rounded p-2 w-full"
-				placeholder="enter your message..."
-			/>
+		<div class="flex gap-2 h-8 mt-4">
+			<button
+				class="bg-green-500 text-white px-4 rounded-lg text-sm w-28"
+				on:click={toggleRecording}
+			>
+				{isRecording ? 'stop' : 'record'}
+			</button>
+			{#if messageType === 'text'}
+				<input
+					type="text"
+					id="message"
+					bind:value={message}
+					class="text-sm border rounded p-1 px-2 w-full"
+					placeholder="your message..."
+				/>
+			{:else if messageType === 'audio'}
+				<div class="w-full border rounded p-1 px-2" bind:this={audioContainer} />
+			{/if}
+
+			<button
+				class="bg-red-500 text-white px-4 rounded-lg text-sm"
+				on:click={() => {
+					message = '';
+					messageType = 'text';
+				}}
+			>
+				reset
+			</button>
 			<button class="bg-blue-500 text-white px-4 rounded-lg text-sm" on:click={sendMessage}>
-				Send
+				send
 			</button>
 		</div>
 	{/if}

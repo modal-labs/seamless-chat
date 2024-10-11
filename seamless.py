@@ -97,11 +97,11 @@ class SeamlessM4T:
     def translate_audio(self, audio: str, tgt_lang: str):
         import io, torchaudio, base64
 
-        audio_buffer = io.BytesIO(base64.b64decode(audio))
+        audio_buffer = io.BytesIO(base64.b64decode(audio.split(",")[1]))
         audio, orig_freq = torchaudio.load(audio_buffer)
         audio = torchaudio.functional.resample(audio, orig_freq, 16000)
 
-        inputs = self.processor(audios=audio, return_tensors="pt").to("cuda")
+        inputs = self.processor(audios=audio, return_tensors="pt", sampling_rate=16000).to("cuda")
         return self._translate(inputs, tgt_lang)
 
     def send_message(self, user_id: str, room_id: str, message_type: Literal["text", "audio"], content: str):
@@ -167,7 +167,7 @@ class SeamlessM4T:
 
         app.add_middleware(
             CORSMiddleware,
-            allow_origins=["http://localhost:5173"],
+            allow_origins=["*"],
             allow_methods=["*"],
             allow_headers=["*"],
         )
