@@ -11,12 +11,24 @@ rooms = modal.Dict.from_name("seamless-rooms", create_if_missing=True)
 message_content = modal.Dict.from_name("seamless-message-content", create_if_missing=True)
 message_queue = modal.Queue.from_name("seamless-queue", create_if_missing=True)
 
+
+room_names = [
+    'dog', 'cat', 'lion', 'tiger', 'elephant', 'giraffe', 'zebra', 'monkey', 'rabbit', 
+    'deer', 'bear', 'wolf', 'fox', 'squirrel', 'kangaroo', 'panda', 'koala', 
+    'hippopotamus', 'rhinoceros', 'buffalo', 'crocodile', 'alligator', 'penguin', 
+    'flamingo', 'eagle', 'owl', 'parrot', 'peacock', 'sparrow', 'duck', 'goose', 
+    'chicken', 'turkey', 'cow', 'sheep', 'goat', 'horse', 'donkey', 'pig', 'bat', 
+    'shark', 'whale', 'dolphin', 'octopus', 'jellyfish', 'crab', 'lobster', 'turtle', 
+    'snake', 'frog', 'lizard'
+]
+
 @app.cls(
     gpu="H100", 
     image=image,
     container_idle_timeout=240,
     timeout=3600,
     concurrency_limit=5,
+    allow_concurrent_inputs=5,
     keep_warm=1
 )
 class SeamlessM4T:
@@ -46,22 +58,31 @@ class SeamlessM4T:
         return user_id
     
     def create_room(self):
-        import uuid
+        import uuid, random
 
         room_id = str(uuid.uuid4())
-        rooms[room_id] = []
-        return room_id
+        room_name = random.choice(room_names)
+        rooms[room_id] = {
+            "name": room_name,
+            "members": [],
+        }
+        return room_id, room_name
 
     def join_room(self, user_id: str, room_id: str):
-        if not room_id in rooms:
-            rooms[room_id] = []
-        
-        if user_id not in rooms[room_id]:
-            rooms[room_id].append(user_id)
+        if user_id not in rooms[room_id]["members"]:
+            rooms[room_id] = {
+                "name": rooms[room_id]["name"],
+                "members": rooms[room_id]["members"] + [user_id],
+            }
+
+        return rooms[room_id]
 
     def leave_room(self, user_id: str, room_id: str):
-        if room_id in rooms and user_id in rooms[room_id]:
-            rooms[room_id].remove(user_id)
+        if user_id in rooms[room_id]["members"]:
+            rooms[room_id] = {
+                "name": rooms[room_id]["name"],
+                "members": [member for member in rooms[room_id]["members"] if member != user_id],
+            }
 
     def _translate(self, inputs, tgt_lang: str):
         output = self.model.generate(**inputs, tgt_lang=tgt_lang, return_intermediate_token_ids=True)
@@ -84,21 +105,25 @@ class SeamlessM4T:
         return self._translate(inputs, tgt_lang)
 
     def send_message(self, user_id: str, room_id: str, message_type: Literal["text", "audio"], content: str):
+        import uuid
+
         user = users.get(user_id)
         message_id = str(uuid.uuid4())
         message_content[message_id] = content
 
-        room_members = rooms.get(room_id, [])
+        room_members = rooms[room_id]["members"]
         for member_id in room_members:
-            message_queue.put({
+            message_data = {
+                "user_id": user_id,
                 "user_name": user["name"],
                 "message_type": message_type,
                 "message_id": message_id,
                 "lang": user["lang"]
-            }, partition=member_id)
+            }
+            message_queue.put(message_data, partition=member_id)
 
     async def receive_message(self, websocket, user_id: str):
-        import asyncio, soundfile, base64
+        import asyncio, soundfile, base64, io
 
         tgt_lang = users.get(user_id)["lang"]
 
@@ -108,56 +133,75 @@ class SeamlessM4T:
                 await asyncio.sleep(0.1)
                 continue
 
+            print(f"Received message {message} for {user_id}")
+
             content = message_content.get(message["message_id"])
             message_type = message["message_type"]
             src_lang = message["lang"]
-            user_name = message["user_name"]
 
-            result = {
-                "user_name": user_name,
-                "src_lang": src_lang,
+            message_data = {
+                "messageId": message["message_id"],
+                "userId": message["user_id"],
+                "userName": message["user_name"],
+                "lang": src_lang,
             }
 
             if message_type == "text":
                 text, audio_array = self.translate_text(content, src_lang, tgt_lang)
             elif message_type == "audio":
                 text, audio_array = self.translate_audio(content, tgt_lang)
-            
-            with io.BytesIO() as audio_buffer:
-                soundfile.write(audio_buffer, audio_array, 16000, format="WAV")
-                audio_bytes = base64.b64encode(audio_buffer.getvalue()).decode("utf-8")
 
-            result["message_text"] = text
-            result["message_audio"] = audio_bytes
+            message_data["text"] = text
+            message_data["audio"] = audio_array.tolist()
 
-            await websocket.send_json(result)
+            await websocket.send_json(message_data)
 
 
     @modal.asgi_app()
     def asgi_app(self):
+        import asyncio
         from fastapi import FastAPI, Form, WebSocket
+        from fastapi.middleware.cors import CORSMiddleware
+
         app = FastAPI()
+
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["http://localhost:5173"],
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+
+        @app.post("/create-room")
+        async def create_room():
+            room_id, room_name = self.create_room()
+            return {"roomId": room_id}
         
         @app.post("/join-room")
-        async def join_room(user_name: str = Form(...), lang: str = Form(...), room_id: Optional[str] = Form(None)):
+        async def join_room(user_name: str = Form(...), lang: str = Form(...), room_id: str = Form(...)):
             user_id = self.create_user(user_name, lang)
-            if room_id is None:
-                room_id = self.create_room()
+            room = self.join_room(user_id, room_id)
+            return {"userId": user_id, "roomName": room["name"]}
+        
+        @app.get("/get-rooms")
+        async def get_rooms():
+            return {room_id: rooms[room_id] for room_id in rooms.keys() if len(rooms[room_id]["members"]) > 0}
 
-            self.join_room(user_id, room_id)
-
-            return {"room_id": room_id, "user_id": user_id}
         
         @app.websocket("/chat")
         async def chat(websocket: WebSocket):
             await websocket.accept()
 
-            receive_task = asyncio.create_task(self.receive_message(websocket, user_id))
+            receive_task = None
+            user_id = None
+            room_id = None
 
             try:
                 user_data = await websocket.receive_json()
                 user_id = user_data.get("user_id")
                 room_id = user_data.get("room_id")
+
+                receive_task = asyncio.create_task(self.receive_message(websocket, user_id))
 
                 while True:
                     message = await websocket.receive_json()
@@ -166,8 +210,10 @@ class SeamlessM4T:
             except Exception as e:
                 print(f"Socket disconnected: {e}")
             finally:
-                self.leave_room(user_id, room_id)
-                receive_task.cancel()
+                if user_id and room_id:
+                    self.leave_room(user_id, room_id)
+                if receive_task:
+                    receive_task.cancel()
                 await websocket.close()
 
         
