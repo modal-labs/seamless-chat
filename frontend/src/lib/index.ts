@@ -19,7 +19,7 @@ export interface Room {
 
 export const languageOptions = [
     {
-        name: 'modern standard arabic',
+        name: 'arabic',
         code: 'arb'
     },
     {
@@ -35,7 +35,7 @@ export const languageOptions = [
         code: 'ces'
     },
     {
-        name: 'mandarin chinese',
+        name: 'chinese',
         code: 'cmn'
     },
     {

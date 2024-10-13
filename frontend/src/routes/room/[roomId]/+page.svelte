@@ -34,7 +34,7 @@
 			barGap: 2,
 			interact: false,
 			cursorWidth: 0,
-			height: 20
+			height: 24
 		});
 	}
 
@@ -46,7 +46,7 @@
 		setupMediaRecorder();
 
 		getRoomInfo();
-		pollMembers = setInterval(getRoomInfo, 2000);
+		pollMembers = setInterval(getRoomInfo, 3000);
 
 		return () => pollMembers && clearInterval(pollMembers);
 	});
@@ -137,7 +137,6 @@
 				const reader = new FileReader();
 
 				wavesurfer?.loadBlob(audioBlob);
-				wavesurfer?.play();
 
 				reader.onloadend = () => {
 					if (typeof reader.result === 'string') {
@@ -166,17 +165,14 @@
 	};
 </script>
 
-<div class="w-fit mx-auto border rounded-lg p-4">
-	<div class="text-center text-3xl">{roomName}</div>
+<div class="w-fit mx-auto rounded-lg p-4 bg-tea">
+	<div class="text-center text-4xl text-space">{roomName}</div>
 	{#if !userId}
 		<Join bind:userName bind:lang {joinRoom} />
 	{:else}
 		<div class="flex gap-2 justify-center mt-4">
-			<div class="w-[200px] flex flex-col gap-2 items-center">
-				<button
-					on:click={leaveRoom}
-					class="bg-blue-500 text-white px-4 rounded-lg text-sm h-8 w-full"
-				>
+			<div class="w-[200px] flex flex-col gap-2 items-center p-4">
+				<button on:click={leaveRoom} class="bg-fern text-white px-4 rounded-lg text-sm h-8 w-full">
 					rejoin room
 				</button>
 				<button
@@ -184,7 +180,7 @@
 						leaveRoom();
 						goto('/');
 					}}
-					class="bg-red-500 text-white px-4 rounded-lg text-sm h-8 w-full"
+					class="bg-space text-white px-4 rounded-lg text-sm h-8 w-full"
 				>
 					back to lobby
 				</button>
@@ -193,7 +189,7 @@
 				<Chat {messages} {userId} />
 				<div class="flex gap-2 h-8 mt-4">
 					<button
-						class="bg-green-500 text-white px-4 rounded-lg text-sm w-28"
+						class="bg-celadon active:bg-celadon text-space px-4 rounded-lg text-sm w-28"
 						on:click={toggleRecording}
 					>
 						{isRecording ? 'stop' : 'record'}
@@ -203,15 +199,24 @@
 							type="text"
 							id="message"
 							bind:value={message}
-							class="text-sm border rounded p-1 px-2 w-full"
+							class="text-sm bg-mint active:bg-mint rounded p-1 px-2 w-full"
 							placeholder="your message..."
 						/>
 					{:else if messageType === 'audio'}
-						<div class="w-full border rounded p-1 px-2" bind:this={audioContainer} />
+						{#if isRecording}
+							<input
+								type="text"
+								disabled
+								class="text-sm bg-mint rounded p-1 px-2 w-full"
+								placeholder="recording..."
+							/>
+						{:else}
+							<div class="w-full bg-celadon rounded p-1 px-2" bind:this={audioContainer} />
+						{/if}
 					{/if}
 
 					<button
-						class="bg-red-500 text-white px-4 rounded-lg text-sm"
+						class="bg-space text-white px-4 rounded-lg text-sm"
 						on:click={() => {
 							message = '';
 							messageType = 'text';
@@ -219,7 +224,7 @@
 					>
 						reset
 					</button>
-					<button class="bg-blue-500 text-white px-4 rounded-lg text-sm" on:click={sendMessage}>
+					<button class="bg-fern text-white px-4 rounded-lg text-sm" on:click={sendMessage}>
 						send
 					</button>
 				</div>
@@ -235,7 +240,7 @@
 								(you)
 							{/if}
 						</span>
-						<span class="text-xs text-white bg-blue-500 px-2 py-0.5 rounded-lg"
+						<span class="text-xs text-white bg-fern px-2 py-0.5 rounded-lg"
 							>{languageOptions.find((l) => l.code === member.lang)?.name}</span
 						>
 					</div>

@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-	/* @apply bg-emerald-100; */
+@layer base {
+	@font-face {
+		font-family: mabry;
+		src: url(/fonts/MabryPro-Regular.woff) format('woff');
+	}
+	html {
+		@apply bg-fern text-space font-mabry;
+	}
+	button {
+		@apply transition-all rounded-lg hover:scale-[1.02];
+	}
 }

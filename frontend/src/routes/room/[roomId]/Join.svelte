@@ -10,21 +10,21 @@
 <div class="w-[600px]">
 	<div class="flex gap-4 mt-4">
 		<div class="w-7/12">
-			<label for="userName" class="text-xs">name</label>
+			<label for="userName" class="text-md">name</label>
 			<input
 				type="text"
 				id="userName"
 				bind:value={userName}
-				class="text-sm border rounded px-2 py-1 w-full"
+				class="bg-mint active:bg-mint text-xl placeholder:text-space rounded px-2 py-1 w-full"
 				placeholder="your name..."
 			/>
 		</div>
 		<div class="w-5/12">
-			<label for="language" class="text-xs">language</label>
+			<label for="language" class="text-md">language</label>
 			<select
 				bind:value={lang}
 				id="language"
-				class="text-sm border rounded px-2 py-1 w-full appearance-none"
+				class="bg-mint active:bg-mint text-xl rounded px-2 py-1 w-full appearance-none"
 			>
 				{#each languageOptions as language}
 					<option value={language.code}>{language.name}</option>
@@ -33,10 +33,10 @@
 		</div>
 	</div>
 	<div class="mt-4 flex gap-2 items-center">
-		<button on:click={joinRoom} class="bg-blue-500 w-full text-white py-1 rounded-md">
+		<button on:click={joinRoom} class="bg-fern w-full text-white py-1 rounded-md">
 			join room
 		</button>
-		<button on:click={() => goto('/')} class="bg-red-500 w-full text-white py-1 rounded-md">
+		<button on:click={() => goto('/')} class="bg-space w-full text-white py-1 rounded-md">
 			back to lobby
 		</button>
 	</div>
