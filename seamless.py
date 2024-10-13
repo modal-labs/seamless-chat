@@ -9,13 +9,13 @@ image = modal.Image.debian_slim().apt_install("ffmpeg").pip_install("transformer
 users = modal.Dict.from_name("seamless-users", create_if_missing=True)
 rooms = modal.Dict.from_name("seamless-rooms", create_if_missing=True)
 message_content = modal.Dict.from_name("seamless-message-content", create_if_missing=True)
-message_queue = modal.Queue.from_name("seamless-queue", create_if_missing=True)
+message_queue = modal.Queue.from_name("seamless-message-queue", create_if_missing=True)
 
 
 room_names = [
     'dog', 'cat', 'lion', 'tiger', 'elephant', 'giraffe', 'zebra', 'monkey', 'rabbit', 
     'deer', 'bear', 'wolf', 'fox', 'squirrel', 'kangaroo', 'panda', 'koala', 
-    'hippopotamus', 'rhinoceros', 'buffalo', 'crocodile', 'alligator', 'penguin', 
+    'buffalo', 'crocodile', 'alligator', 'penguin', 
     'flamingo', 'eagle', 'owl', 'parrot', 'peacock', 'sparrow', 'duck', 'goose', 
     'chicken', 'turkey', 'cow', 'sheep', 'goat', 'horse', 'donkey', 'pig', 'bat', 
     'shark', 'whale', 'dolphin', 'octopus', 'jellyfish', 'crab', 'lobster', 'turtle', 
@@ -79,9 +79,10 @@ class SeamlessM4T:
 
     def leave_room(self, user_id: str, room_id: str):
         if user_id in rooms[room_id]["members"]:
+            members = [member for member in rooms[room_id]["members"] if member != user_id]
             rooms[room_id] = {
                 "name": rooms[room_id]["name"],
-                "members": [member for member in rooms[room_id]["members"] if member != user_id],
+                "members": members,
             }
 
     def _translate(self, inputs, tgt_lang: str):
@@ -181,13 +182,19 @@ class SeamlessM4T:
         async def join_room(user_name: str = Form(...), lang: str = Form(...), room_id: str = Form(...)):
             user_id = self.create_user(user_name, lang)
             room = self.join_room(user_id, room_id)
-            return {"userId": user_id, "roomName": room["name"]}
+            return {"userId": user_id}
         
-        @app.get("/get-rooms")
+        @app.get("/rooms")
         async def get_rooms():
-            return {room_id: rooms[room_id] for room_id in rooms.keys() if len(rooms[room_id]["members"]) > 0}
+            return {room_id: rooms[room_id] for room_id in rooms.keys()}
 
-        
+        @app.get("/room-info")
+        async def get_room_info(room_id: str):
+            return {
+                "name": rooms[room_id]["name"],
+                "members": [users[user_id] for user_id in rooms[room_id]["members"]]
+            }
+
         @app.websocket("/chat")
         async def chat(websocket: WebSocket):
             await websocket.accept()
