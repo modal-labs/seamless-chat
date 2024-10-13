@@ -4,22 +4,14 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { PUBLIC_BACKEND_URL } from '$env/static/public';
-	import { languageOptions } from '$lib';
+	import { languageOptions, type Message, type User } from '$lib';
+	import { goto } from '$app/navigation';
+	import Chat from './Chat.svelte';
+	import Join from './Join.svelte';
 
-	$: roomId = $page.params.roomId;
-
-	interface Message {
-		messageId: string;
-		userId: string;
-		userName: string;
-		lang: string;
-		text: string;
-		audio: number[];
-	}
 	let messages: Message[] = [];
-
-	let userId: string | null = '';
-
+	let roomId = $page.params.roomId;
+	let userId: string | null = null;
 	let messageType: 'text' | 'audio' = 'text';
 	let message = '';
 	let connected = false;
@@ -29,6 +21,9 @@
 	let roomName = '';
 	let audioContainer: HTMLElement;
 	let wavesurfer: WaveSurfer | null = null;
+	let members: Record<string, User> = {};
+	let pollMembers: number | null = null;
+
 	$: if (audioContainer) {
 		wavesurfer = WaveSurfer.create({
 			container: audioContainer,
@@ -43,15 +38,17 @@
 		});
 	}
 
-	let audioContext: AudioContext;
-
 	let isRecording = false;
 	let mediaRecorder: MediaRecorder | null = null;
 	let audioChunks: Blob[] = [];
 
 	onMount(() => {
-		audioContext = new AudioContext();
 		setupMediaRecorder();
+
+		getRoomInfo();
+		pollMembers = setInterval(getRoomInfo, 2000);
+
+		return () => pollMembers && clearInterval(pollMembers);
 	});
 
 	const connectSocket = () => {
@@ -75,9 +72,14 @@
 		socket.onclose = async () => {
 			connected = false;
 			socket.close();
-
-			await leaveRoom();
 		};
+	};
+
+	const getRoomInfo = async () => {
+		const response = await fetch(`${PUBLIC_BACKEND_URL}/room-info?room_id=${roomId}`);
+		const roomInfo = await response.json();
+		roomName = roomInfo.name;
+		members = roomInfo.members;
 	};
 
 	const joinRoom = async () => {
@@ -92,22 +94,14 @@
 		});
 		const data = await response.json();
 		userId = data.userId;
-		roomName = data.roomName;
 
 		connectSocket();
 	};
 
 	const leaveRoom = async () => {
 		if (!userId) return;
-
-		const formData = new FormData();
-		formData.append('user_id', userId);
-		formData.append('room_id', roomId);
-
-		await fetch(`${PUBLIC_BACKEND_URL}/leave-room`, {
-			method: 'POST',
-			body: formData
-		});
+		socket.close();
+		messages = [];
 		userId = null;
 	};
 
@@ -123,15 +117,6 @@
 		message = '';
 		messageType = 'text';
 		isRecording = false;
-	};
-
-	const playAudio = (audio: number[]) => {
-		const audioBuffer = new AudioBuffer({ length: audio.length, sampleRate: 16000 });
-		audioBuffer.copyToChannel(new Float32Array(audio), 0);
-		const source = audioContext.createBufferSource();
-		source.buffer = audioBuffer;
-		source.connect(audioContext.destination);
-		source.start();
 	};
 
 	const setupMediaRecorder = async () => {
@@ -181,90 +166,81 @@
 	};
 </script>
 
-<div class="border rounded-lg p-4">
+<div class="w-fit mx-auto border rounded-lg p-4">
+	<div class="text-center text-3xl">{roomName}</div>
 	{#if !userId}
-		<div class="flex gap-4">
-			<div class="w-7/12">
-				<label for="userName" class="text-xs">name</label>
-				<input
-					type="text"
-					id="userName"
-					bind:value={userName}
-					class="text-sm border rounded px-2 py-1 w-full"
-					placeholder="your name..."
-				/>
-			</div>
-			<div class="w-5/12">
-				<label for="language" class="text-xs">language</label>
-				<select
-					bind:value={lang}
-					id="language"
-					class="text-sm border rounded px-2 py-1 w-full appearance-none"
-				>
-					{#each languageOptions as language}
-						<option value={language.code}>{language.name}</option>
-					{/each}
-				</select>
-			</div>
-		</div>
-		<button on:click={joinRoom} class="bg-blue-500 w-full text-white py-2 rounded-md mt-4">
-			join room
-		</button>
+		<Join bind:userName bind:lang {joinRoom} />
 	{:else}
-		<div class="text-center text-xl">{roomName}</div>
-		<div class="h-[400px] overflow-y-auto border rounded p-2 mt-4">
-			{#each messages as message (message.messageId)}
-				<div
-					class={`mb-2 p-2 rounded ${message.userId === userId ? 'bg-blue-100 ml-auto mr-2' : 'bg-gray-100 mr-auto ml-2'}`}
-					style="max-width: 80%;"
+		<div class="flex gap-2 justify-center mt-4">
+			<div class="w-[200px] flex flex-col gap-2 items-center">
+				<button
+					on:click={leaveRoom}
+					class="bg-blue-500 text-white px-4 rounded-lg text-sm h-8 w-full"
 				>
-					<div class="flex justify-between items-center">
-						<span class="font-bold"
-							>{message.userName} ({languageOptions.find((l) => l.code === message.lang)
-								?.name}):</span
-						>
-						<button
-							class="bg-green-500 text-white px-2 py-1 rounded text-xs"
-							on:click={() => playAudio(message.audio)}
-						>
-							play audio
-						</button>
-					</div>
-					<p>{message.text}</p>
-				</div>
-			{/each}
-		</div>
-		<div class="flex gap-2 h-8 mt-4">
-			<button
-				class="bg-green-500 text-white px-4 rounded-lg text-sm w-28"
-				on:click={toggleRecording}
-			>
-				{isRecording ? 'stop' : 'record'}
-			</button>
-			{#if messageType === 'text'}
-				<input
-					type="text"
-					id="message"
-					bind:value={message}
-					class="text-sm border rounded p-1 px-2 w-full"
-					placeholder="your message..."
-				/>
-			{:else if messageType === 'audio'}
-				<div class="w-full border rounded p-1 px-2" bind:this={audioContainer} />
-			{/if}
+					rejoin room
+				</button>
+				<button
+					on:click={() => {
+						leaveRoom();
+						goto('/');
+					}}
+					class="bg-red-500 text-white px-4 rounded-lg text-sm h-8 w-full"
+				>
+					back to lobby
+				</button>
+			</div>
+			<div class="w-[600px]">
+				<Chat {messages} {userId} />
+				<div class="flex gap-2 h-8 mt-4">
+					<button
+						class="bg-green-500 text-white px-4 rounded-lg text-sm w-28"
+						on:click={toggleRecording}
+					>
+						{isRecording ? 'stop' : 'record'}
+					</button>
+					{#if messageType === 'text'}
+						<input
+							type="text"
+							id="message"
+							bind:value={message}
+							class="text-sm border rounded p-1 px-2 w-full"
+							placeholder="your message..."
+						/>
+					{:else if messageType === 'audio'}
+						<div class="w-full border rounded p-1 px-2" bind:this={audioContainer} />
+					{/if}
 
-			<button
-				class="bg-red-500 text-white px-4 rounded-lg text-sm"
-				on:click={() => {
-					message = '';
-					messageType = 'text';
-				}}
-			>
-				reset
-			</button>
-			<button class="bg-blue-500 text-white px-4 rounded-lg text-sm" on:click={sendMessage}>
-				send
-			</button>
+					<button
+						class="bg-red-500 text-white px-4 rounded-lg text-sm"
+						on:click={() => {
+							message = '';
+							messageType = 'text';
+						}}
+					>
+						reset
+					</button>
+					<button class="bg-blue-500 text-white px-4 rounded-lg text-sm" on:click={sendMessage}>
+						send
+					</button>
+				</div>
+			</div>
+			<div class="w-[200px] flex flex-col gap-2 p-4">
+				<div class="text-center text-xl">online users ({Object.keys(members).length})</div>
+				{#each Object.keys(members).sort( (a, b) => (a === userId ? -1 : b === userId ? 1 : 0) ) as memberId}
+					{@const member = members[memberId]}
+					<div class="flex gap-2 items-center">
+						<span class="font-bold"
+							>{member.name}
+							{#if memberId === userId}
+								(you)
+							{/if}
+						</span>
+						<span class="text-xs text-white bg-blue-500 px-2 py-0.5 rounded-lg"
+							>{languageOptions.find((l) => l.code === member.lang)?.name}</span
+						>
+					</div>
+				{/each}
+			</div>
 		</div>
 	{/if}
 </div>

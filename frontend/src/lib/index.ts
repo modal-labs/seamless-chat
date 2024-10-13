@@ -1,3 +1,22 @@
+export interface Message {
+    messageId: string;
+    userId: string;
+    userName: string;
+    lang: string;
+    text: string;
+    audio: number[];
+}
+
+export interface User {
+    name: string;
+    lang: string;
+}
+
+export interface Room {
+    name: string;
+    members: string[];
+}
+
 export const languageOptions = [
     {
         name: 'modern standard arabic',
@@ -16,12 +35,8 @@ export const languageOptions = [
         code: 'ces'
     },
     {
-        name: 'mandarin chinese (simplified)',
+        name: 'mandarin chinese',
         code: 'cmn'
-    },
-    {
-        name: 'mandarin chinese (traditional)',
-        code: 'cmn_Hant'
     },
     {
         name: 'welsh',
