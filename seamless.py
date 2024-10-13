@@ -4,7 +4,7 @@ from typing import Literal, Optional
 
 app = modal.App("seamless-chat")
 
-image = modal.Image.debian_slim().apt_install("ffmpeg").pip_install("transformers", "sentencepiece", "torchaudio", "soundfile")
+image = modal.Image.debian_slim().apt_install("ffmpeg").pip_install("transformers", "sentencepiece", "torchaudio", "soundfile", "numpy")
 
 users = modal.Dict.from_name("seamless-users", create_if_missing=True)
 rooms = modal.Dict.from_name("seamless-rooms", create_if_missing=True)
@@ -91,10 +91,12 @@ class SeamlessM4T:
         text = self.processor.decode(output[2].tolist()[0], skip_special_tokens=True)
         return text, audio_array
     
+    @modal.method()
     def translate_text(self, text: str, src_lang: str, tgt_lang: str):
         inputs = self.processor(text=text, src_lang=src_lang, return_tensors="pt").to("cuda")
         return self._translate(inputs, tgt_lang)
     
+    @modal.method()
     def translate_audio(self, audio: str, tgt_lang: str):
         import io, torchaudio, base64
 
@@ -225,3 +227,10 @@ class SeamlessM4T:
 
         
         return app
+
+@app.local_entrypoint()
+def main():
+    import numpy
+    
+    text, audio_array = SeamlessM4T.translate_text.remote("Hello, world!", "eng", "cmn")
+    print(text)
