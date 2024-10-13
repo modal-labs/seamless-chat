@@ -91,12 +91,10 @@ class SeamlessM4T:
         text = self.processor.decode(output[2].tolist()[0], skip_special_tokens=True)
         return text, audio_array
     
-    @modal.method()
     def translate_text(self, text: str, src_lang: str, tgt_lang: str):
         inputs = self.processor(text=text, src_lang=src_lang, return_tensors="pt").to("cuda")
         return self._translate(inputs, tgt_lang)
     
-    @modal.method()
     def translate_audio(self, audio: str, tgt_lang: str):
         import io, torchaudio, base64
 
@@ -194,7 +192,7 @@ class SeamlessM4T:
         async def get_room_info(room_id: str):
             return {
                 "name": rooms[room_id]["name"],
-                "members": [users[user_id] for user_id in rooms[room_id]["members"]]
+                "members": {user_id: users[user_id] for user_id in rooms[room_id]["members"]}
             }
 
         @app.websocket("/chat")
@@ -231,6 +229,6 @@ class SeamlessM4T:
 @app.local_entrypoint()
 def main():
     import numpy
-    
+
     text, audio_array = SeamlessM4T.translate_text.remote("Hello, world!", "eng", "cmn")
     print(text)
