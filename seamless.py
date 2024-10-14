@@ -1,10 +1,12 @@
 import modal
 from pydantic import BaseModel
 from typing import Literal, Optional
+from pathlib import Path
 
 app = modal.App("seamless-chat")
 
-image = modal.Image.debian_slim().apt_install("ffmpeg").pip_install("transformers", "sentencepiece", "torchaudio", "soundfile", "numpy")
+backend_image = modal.Image.debian_slim().apt_install("ffmpeg").pip_install("transformers", "sentencepiece", "torchaudio", "soundfile", "numpy")
+frontend_image = modal.Image.debian_slim().pip_install("jinja2")
 
 users = modal.Dict.from_name("seamless-users", create_if_missing=True)
 rooms = modal.Dict.from_name("seamless-rooms", create_if_missing=True)
@@ -24,7 +26,7 @@ room_names = [
 
 @app.cls(
     gpu="H100", 
-    image=image,
+    image=backend_image,
     container_idle_timeout=240,
     timeout=3600,
     concurrency_limit=5,
@@ -225,10 +227,46 @@ class SeamlessM4T:
 
         
         return app
+    
+    @modal.method()
+    def test_translate_text(self):
+        import numpy
+
+        text, audio_array = self.translate_text.remote("Hello, world!", "eng", "cmn")
+        return text
+
+base_path = Path(__file__).parent
+static_path = base_path.joinpath("frontend", "build")
+
+@app.function(
+    mounts=[modal.Mount.from_local_dir(static_path, remote_path="/assets")],
+    image=frontend_image,
+    allow_concurrent_inputs=10,
+    keep_warm=2
+)
+@modal.asgi_app()
+def frontend():
+    from fastapi import FastAPI
+    from fastapi.staticfiles import StaticFiles
+
+    web_app = FastAPI()
+    from jinja2 import Template
+
+    with open("/assets/index.html", "r") as f:
+        template_html = f.read()
+
+    template = Template(template_html)
+
+    with open("/assets/index.html", "w") as f:
+        html = template.render()
+        f.write(html)
+
+    web_app.mount("/", StaticFiles(directory="/assets", html=True))
+
+    return web_app  
+
 
 @app.local_entrypoint()
 def main():
-    import numpy
-
-    text, audio_array = SeamlessM4T.translate_text.remote("Hello, world!", "eng", "cmn")
+    SeamlessM4T.test_translate_text.remote()
     print(text)
