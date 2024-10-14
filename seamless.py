@@ -1,12 +1,39 @@
-import modal
+import modal, asyncio, uuid, random, base64
+
 from pydantic import BaseModel
 from typing import Literal, Optional
 from pathlib import Path
+from fastapi import FastAPI, Form, WebSocket
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 
 app = modal.App("seamless-chat")
 
-backend_image = modal.Image.debian_slim().apt_install("ffmpeg").pip_install("transformers", "sentencepiece", "torchaudio", "soundfile", "numpy")
+backend_image = modal.Image.debian_slim().apt_install("ffmpeg").pip_install(
+    "transformers", 
+    "sentencepiece", 
+    "torchaudio", 
+    "soundfile", 
+    "numpy"
+)
+
+with backend_image.imports():
+    import io
+    import torch
+    import torchaudio
+    import soundfile
+    import numpy
+    from huggingface_hub import snapshot_download
+    from fastapi import FastAPI, Form, WebSocket
+    from transformers import AutoProcessor, SeamlessM4Tv2Model
+
+
 frontend_image = modal.Image.debian_slim().pip_install("jinja2")
+
+with frontend_image.imports():
+    from fastapi import FastAPI
+    from jinja2 import Template
+
 
 users = modal.Dict.from_name("seamless-users", create_if_missing=True)
 rooms = modal.Dict.from_name("seamless-rooms", create_if_missing=True)
@@ -36,22 +63,15 @@ room_names = [
 class SeamlessM4T:
     @modal.build()
     def build(self):
-        from huggingface_hub import snapshot_download
-
         snapshot_download("facebook/seamless-m4t-v2-large")
     
     @modal.enter()
     def enter(self):
-        import torch
-        from transformers import AutoProcessor, SeamlessM4Tv2Model
-
         self.processor = AutoProcessor.from_pretrained("facebook/seamless-m4t-v2-large")
         self.model = torch.compile(SeamlessM4Tv2Model.from_pretrained("facebook/seamless-m4t-v2-large").to("cuda"))
     
 
     def create_user(self, user_name: str, lang: str):
-        import uuid
-
         user_id = str(uuid.uuid4())
         users[user_id] = {
             "name": user_name,
@@ -60,8 +80,6 @@ class SeamlessM4T:
         return user_id
     
     def create_room(self):
-        import uuid, random
-
         room_id = str(uuid.uuid4())
         room_name = random.choice(room_names)
         rooms[room_id] = {
@@ -98,8 +116,6 @@ class SeamlessM4T:
         return self._translate(inputs, tgt_lang)
     
     def translate_audio(self, audio: str, tgt_lang: str):
-        import io, torchaudio, base64
-
         audio_buffer = io.BytesIO(base64.b64decode(audio.split(",")[1]))
         audio, orig_freq = torchaudio.load(audio_buffer)
         audio = torchaudio.functional.resample(audio, orig_freq, 16000)
@@ -108,8 +124,6 @@ class SeamlessM4T:
         return self._translate(inputs, tgt_lang)
 
     def send_message(self, user_id: str, room_id: str, message_type: Literal["text", "audio"], content: str):
-        import uuid
-
         user = users.get(user_id)
         message_id = str(uuid.uuid4())
         message_content[message_id] = content
@@ -123,51 +137,12 @@ class SeamlessM4T:
                 "message_id": message_id,
                 "lang": user["lang"]
             }
-            message_queue.put(message_data, partition=member_id)
-
-    async def receive_message(self, websocket, user_id: str):
-        import asyncio, soundfile, base64, io
-
-        tgt_lang = users.get(user_id)["lang"]
-
-        while True:
-            message = message_queue.get(partition=user_id, block=False)
-            if message is None:
-                await asyncio.sleep(0.1)
-                continue
-
-            print(f"Received message {message} for {user_id}")
-
-            content = message_content.get(message["message_id"])
-            message_type = message["message_type"]
-            src_lang = message["lang"]
-
-            message_data = {
-                "messageId": message["message_id"],
-                "userId": message["user_id"],
-                "userName": message["user_name"],
-                "lang": src_lang,
-            }
-
-            if message_type == "text":
-                text, audio_array = self.translate_text(content, src_lang, tgt_lang)
-            elif message_type == "audio":
-                text, audio_array = self.translate_audio(content, tgt_lang)
-
-            message_data["text"] = text
-            message_data["audio"] = audio_array.tolist()
-
-            await websocket.send_json(message_data)
+            message_queue.put(message_data, partition=member_id)        
 
 
     @modal.asgi_app()
     def asgi_app(self):
-        import asyncio
-        from fastapi import FastAPI, Form, WebSocket
-        from fastapi.middleware.cors import CORSMiddleware
-
         app = FastAPI()
-
         app.add_middleware(
             CORSMiddleware,
             allow_origins=["*"],
@@ -201,37 +176,71 @@ class SeamlessM4T:
         async def chat(websocket: WebSocket):
             await websocket.accept()
 
-            receive_task = None
-            user_id = None
-            room_id = None
+            user_data = await websocket.receive_json()
+            user_id = user_data.get("user_id")
+            room_id = user_data.get("room_id")
 
-            try:
-                user_data = await websocket.receive_json()
-                user_id = user_data.get("user_id")
-                room_id = user_data.get("room_id")
+            tgt_lang = users.get(user_id)["lang"]
 
-                receive_task = asyncio.create_task(self.receive_message(websocket, user_id))
+            async def send_loop():
+                while True:
+                    message = message_queue.get(partition=user_id, block=False)
+                    if message is None:
+                        await asyncio.sleep(0.01)
+                        continue
 
+                    print(f"Received message {message} for {user_id}")
+
+                    content = message_content.get(message["message_id"])
+                    message_type = message["message_type"]
+                    src_lang = message["lang"]
+
+                    message_data = {
+                        "messageId": message["message_id"],
+                        "userId": message["user_id"],
+                        "userName": message["user_name"],
+                        "lang": src_lang,
+                    }
+
+                    if message_type == "text":
+                        text, audio_array = self.translate_text(content, src_lang, tgt_lang)
+                    elif message_type == "audio":
+                        text, audio_array = self.translate_audio(content, tgt_lang)
+
+                    message_data["text"] = text
+                    message_data["audio"] = audio_array.tolist()
+
+                    await websocket.send_json(message_data)
+
+
+            async def recv_loop():
                 while True:
                     message = await websocket.receive_json()
                     self.send_message(user_id, room_id, message["message_type"], message["content"])
 
+            try:
+                tasks = [
+                    asyncio.create_task(send_loop()),
+                    asyncio.create_task(recv_loop()),
+                ]
+                await asyncio.gather(*tasks)
+            except WebSocketDisconnect:
+                print(f"Socket disconnected: {user_id}")
+                await websocket.close(code=1000)
             except Exception as e:
-                print(f"Socket disconnected: {e}")
+                print(f"Socket error: {e}")
+                await websocket.close(code=1011)
             finally:
                 if user_id and room_id:
                     self.leave_room(user_id, room_id)
-                if receive_task:
-                    receive_task.cancel()
-                await websocket.close()
-
+                for task in tasks:
+                    task.cancel()
+                await asyncio.gather(*tasks, return_exceptions=True)
         
         return app
     
     @modal.method()
     def test_translate_text(self):
-        import numpy
-
         text, audio_array = self.translate_text.remote("Hello, world!", "eng", "cmn")
         return text
 
@@ -246,11 +255,7 @@ static_path = base_path.joinpath("frontend", "build")
 )
 @modal.asgi_app()
 def frontend():
-    from fastapi import FastAPI
-    from fastapi.staticfiles import StaticFiles
-
     web_app = FastAPI()
-    from jinja2 import Template
 
     with open("/assets/index.html", "r") as f:
         template_html = f.read()
