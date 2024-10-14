@@ -3,7 +3,7 @@ import modal, asyncio, uuid, random, base64
 from pydantic import BaseModel
 from typing import Literal, Optional
 from pathlib import Path
-from fastapi import FastAPI, Form, WebSocket
+from fastapi import FastAPI, Form, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -253,19 +253,9 @@ static_path = base_path.joinpath("frontend", "build")
     allow_concurrent_inputs=10,
     keep_warm=2
 )
-@modal.asgi_app()
+@modal.asgi_app(custom_domains=["seamless.modal.chat"])
 def frontend():
     web_app = FastAPI()
-
-    with open("/assets/index.html", "r") as f:
-        template_html = f.read()
-
-    template = Template(template_html)
-
-    with open("/assets/index.html", "w") as f:
-        html = template.render()
-        f.write(html)
-
     web_app.mount("/", StaticFiles(directory="/assets", html=True))
 
     return web_app  
