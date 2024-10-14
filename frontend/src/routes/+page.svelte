@@ -35,12 +35,12 @@
 </script>
 
 <div class="rounded-lg p-4 w-[600px] mx-auto bg-accent">
-	<div class="w-full text-center text-5xl text-white">seamless chat</div>
-	<div class="text-md text-black text-center mt-2">
+	<div class="w-full text-center text-5xl">seamless chat</div>
+	<div class="text-md text-black text-center bg-secondary p-2 rounded-lg mt-2">
 		A translation chat app for text and speech conversations.
-	</div>
-	<div class="text-md text-black text-center">
-		Powered by Meta's <a
+		<br />
+		Powered by Meta's
+		<a
 			href="https://ai.meta.com/research/publications/seamless-multilingual-expressive-and-streaming-speech-translation/"
 			target="_blank"
 			class="italic">SeamlessM4T</a
