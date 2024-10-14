@@ -27,7 +27,7 @@
 	$: if (audioContainer) {
 		wavesurfer = WaveSurfer.create({
 			container: audioContainer,
-			waveColor: 'gray',
+			waveColor: '#748465',
 			normalize: true,
 			barWidth: 4,
 			barRadius: 4,
@@ -165,22 +165,20 @@
 	};
 </script>
 
-<div class="w-fit mx-auto rounded-lg p-4 bg-tea">
-	<div class="text-center text-4xl text-space">{roomName}</div>
+<div class="w-fit mx-auto rounded-lg p-4 bg-accent">
+	<div class="text-center text-5xl text-white">{roomName}</div>
 	{#if !userId}
 		<Join bind:userName bind:lang {joinRoom} />
 	{:else}
 		<div class="flex gap-2 justify-center mt-4">
 			<div class="w-[200px] flex flex-col gap-2 items-center p-4">
-				<button on:click={leaveRoom} class="bg-fern text-white px-4 rounded-lg text-sm h-8 w-full">
-					rejoin room
-				</button>
+				<button on:click={leaveRoom} class="px-4 text-sm h-8 w-full"> edit user </button>
 				<button
 					on:click={() => {
 						leaveRoom();
 						goto('/');
 					}}
-					class="bg-space text-white px-4 rounded-lg text-sm h-8 w-full"
+					class="bg-tertiary px-4 rounded-lg text-sm h-8 w-full"
 				>
 					back to lobby
 				</button>
@@ -188,10 +186,7 @@
 			<div class="w-[600px]">
 				<Chat {messages} {userId} />
 				<div class="flex gap-2 h-8 mt-4">
-					<button
-						class="bg-celadon active:bg-celadon text-space px-4 rounded-lg text-sm w-28"
-						on:click={toggleRecording}
-					>
+					<button class="px-4 rounded-lg text-sm w-28" on:click={toggleRecording}>
 						{isRecording ? 'stop' : 'record'}
 					</button>
 					{#if messageType === 'text'}
@@ -199,7 +194,7 @@
 							type="text"
 							id="message"
 							bind:value={message}
-							class="text-sm bg-mint active:bg-mint rounded p-1 px-2 w-full"
+							class="text-sm rounded p-1 px-2 w-full"
 							placeholder="your message..."
 						/>
 					{:else if messageType === 'audio'}
@@ -207,16 +202,16 @@
 							<input
 								type="text"
 								disabled
-								class="text-sm bg-mint rounded p-1 px-2 w-full"
+								class="text-sm rounded p-1 px-2 w-full"
 								placeholder="recording..."
 							/>
 						{:else}
-							<div class="w-full bg-celadon rounded p-1 px-2" bind:this={audioContainer} />
+							<div class="bg-white w-full rounded p-1 px-2" bind:this={audioContainer} />
 						{/if}
 					{/if}
 
 					<button
-						class="bg-space text-white px-4 rounded-lg text-sm"
+						class="px-4 rounded-lg text-sm bg-tertiary"
 						on:click={() => {
 							message = '';
 							messageType = 'text';
@@ -224,13 +219,13 @@
 					>
 						reset
 					</button>
-					<button class="bg-fern text-white px-4 rounded-lg text-sm" on:click={sendMessage}>
-						send
-					</button>
+					<button class="px-4 rounded-lg text-sm" on:click={sendMessage}> send </button>
 				</div>
 			</div>
 			<div class="w-[200px] flex flex-col gap-2 p-4">
-				<div class="text-center text-xl">online users ({Object.keys(members).length})</div>
+				<div class="text-center text-xl">
+					online users ({Object.keys(members).length})
+				</div>
 				{#each Object.keys(members).sort( (a, b) => (a === userId ? -1 : b === userId ? 1 : 0) ) as memberId}
 					{@const member = members[memberId]}
 					<div class="flex gap-2 items-center">
@@ -240,7 +235,7 @@
 								(you)
 							{/if}
 						</span>
-						<span class="text-xs text-white bg-fern px-2 py-0.5 rounded-lg"
+						<span class="text-xs bg-primary px-2 py-0.5 rounded-lg"
 							>{languageOptions.find((l) => l.code === member.lang)?.name}</span
 						>
 					</div>

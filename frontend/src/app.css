@@ -8,9 +8,15 @@
 		src: url(/fonts/MabryPro-Regular.woff) format('woff');
 	}
 	html {
-		@apply bg-fern text-space font-mabry;
+		@apply bg-neutral font-mabry text-white;
 	}
 	button {
-		@apply transition-all rounded-lg hover:scale-[1.02];
+		@apply transition-all rounded-lg hover:scale-[1.02] bg-primary text-white;
+	}
+	input {
+		@apply bg-white text-primary;
+	}
+	select {
+		@apply bg-white text-primary;
 	}
 }

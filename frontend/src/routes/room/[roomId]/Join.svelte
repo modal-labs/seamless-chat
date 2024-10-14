@@ -15,7 +15,7 @@
 				type="text"
 				id="userName"
 				bind:value={userName}
-				class="bg-mint active:bg-mint text-xl placeholder:text-space rounded px-2 py-1 w-full"
+				class="text-xl rounded px-2 py-1 w-full"
 				placeholder="your name..."
 			/>
 		</div>
@@ -24,7 +24,7 @@
 			<select
 				bind:value={lang}
 				id="language"
-				class="bg-mint active:bg-mint text-xl rounded px-2 py-1 w-full appearance-none"
+				class="text-xl rounded px-2 py-1 w-full appearance-none"
 			>
 				{#each languageOptions as language}
 					<option value={language.code}>{language.name}</option>
@@ -33,10 +33,8 @@
 		</div>
 	</div>
 	<div class="mt-4 flex gap-2 items-center">
-		<button on:click={joinRoom} class="bg-fern w-full text-white py-1 rounded-md">
-			join room
-		</button>
-		<button on:click={() => goto('/')} class="bg-space w-full text-white py-1 rounded-md">
+		<button on:click={joinRoom} class="text-xl w-full py-2"> join room </button>
+		<button on:click={() => goto('/')} class="bg-tertiary text-xl w-full py-2">
 			back to lobby
 		</button>
 	</div>

@@ -22,27 +22,27 @@
 	}
 </script>
 
-<div bind:this={chatContainer} class="h-[450px] overflow-y-auto rounded p-2 bg-mint">
+<div bind:this={chatContainer} class="h-[450px] overflow-y-auto rounded p-2 bg-secondary">
 	{#each messages as message (message.messageId)}
 		<div
-			class={`mb-2 p-2 rounded ${message.userId === userId ? 'bg-celadon ml-auto mr-2' : 'bg-tea mr-auto ml-2'}`}
+			class={`mb-2 p-2 rounded ${message.userId === userId ? 'bg-primary ml-auto mr-2' : 'bg-accent mr-auto ml-2'}`}
 			style="max-width: 80%;"
 		>
 			<div class="flex justify-between items-center">
 				<div class="flex items-center gap-2">
 					<span class="font-bold">{message.userName}</span>
-					<span class="text-xs text-mint bg-fern px-2 py-0.5 rounded-lg"
+					<span class="text-xs text-black bg-neutral px-2 py-0.5 rounded-lg"
 						>{languageOptions.find((l) => l.code === message.lang)?.name}</span
 					>
 					<button
-						class="bg-fern text-mint px-2 py-0.5 rounded-lg text-xs"
+						class="bg-neutral text-black px-2 py-0.5 rounded-lg text-xs"
 						on:click={() => playAudio(message.audio)}
 					>
 						play audio
 					</button>
 				</div>
 			</div>
-			<p>{message.text}</p>
+			<div>{message.text}</div>
 		</div>
 	{/each}
 </div>
