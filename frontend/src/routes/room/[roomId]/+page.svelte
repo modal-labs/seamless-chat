@@ -44,8 +44,8 @@
 
 	onMount(() => {
 		setupMediaRecorder();
-
 		getRoomInfo();
+		connectSocket();
 		pollMembers = setInterval(getRoomInfo, 3000);
 
 		return () => pollMembers && clearInterval(pollMembers);
@@ -95,7 +95,12 @@
 		const data = await response.json();
 		userId = data.userId;
 
-		connectSocket();
+		socket.send(
+			JSON.stringify({
+				user_id: userId,
+				room_id: roomId
+			})
+		);
 	};
 
 	const leaveRoom = async () => {
