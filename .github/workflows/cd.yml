@@ -17,10 +17,10 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: build frontend
-        run: |
-          cd frontend
-          npm run build
-          cd ..
+        working-directory: frontend
+        env:
+          PUBLIC_BACKEND_URL: https://modal-labs-vishy-dev--seamless-chat-seamlessm4t-asgi-app.modal.run
+        run: npm run build
 
       - name: deploy to modal
         env:
