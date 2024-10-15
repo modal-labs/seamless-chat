@@ -26,5 +26,5 @@ runs:
         node-version: ${{ inputs.node-version }}
     - name: install node dependencies
       shell: bash
-      run: |
-        npm ci
+      working-directory: frontend
+      run: npm ci
