@@ -222,24 +222,26 @@
 					<button class="px-4 rounded-lg text-sm" on:click={sendMessage}> send </button>
 				</div>
 			</div>
-			<div class="w-[200px] flex flex-col gap-2 p-4">
+			<div class="w-[200px] p-4">
 				<div class="text-center text-xl">
 					online users ({Object.keys(members).length})
 				</div>
-				{#each Object.keys(members).sort( (a, b) => (a === userId ? -1 : b === userId ? 1 : 0) ) as memberId}
-					{@const member = members[memberId]}
-					<div class="flex gap-2 items-center">
-						<span class="font-bold"
-							>{member.name}
-							{#if memberId === userId}
-								(you)
-							{/if}
-						</span>
-						<span class="text-xs bg-primary px-2 py-0.5 rounded-lg"
-							>{languageOptions.find((l) => l.code === member.lang)?.name}</span
-						>
-					</div>
-				{/each}
+				<div class="flex flex-col gap-2 mt-3">
+					{#each Object.keys(members).sort( (a, b) => (a === userId ? -1 : b === userId ? 1 : 0) ) as memberId}
+						{@const member = members[memberId]}
+						<div class="flex gap-2 items-center">
+							<span class="font-bold"
+								>{member.name}
+								{#if memberId === userId}
+									(you)
+								{/if}
+							</span>
+							<span class="text-xs bg-primary px-2 py-0.5 rounded-lg"
+								>{languageOptions.find((l) => l.code === member.lang)?.name}</span
+							>
+						</div>
+					{/each}
+				</div>
 			</div>
 		</div>
 	{/if}

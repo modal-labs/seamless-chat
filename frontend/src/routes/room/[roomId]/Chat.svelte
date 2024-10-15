@@ -23,6 +23,9 @@
 </script>
 
 <div bind:this={chatContainer} class="h-[450px] overflow-y-auto rounded p-2 bg-secondary">
+	<div class="text-center bg-primary rounded-full py-1 hidden only:block">
+		enter a text message or press record to speak
+	</div>
 	{#each messages as message (message.messageId)}
 		<div
 			class={`mb-2 p-2 rounded ${message.userId === userId ? 'bg-primary ml-auto mr-2' : 'bg-accent mr-auto ml-2'}`}
