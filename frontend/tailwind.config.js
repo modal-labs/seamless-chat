@@ -7,23 +7,14 @@ export default {
 				mabry: ['mabry']
 			},
 			colors: {
-				primary: {
-					DEFAULT: '#748465',
-				},
-				secondary: {
-					DEFAULT: '#dbd9db', 
-				},
-        tertiary: {
-          DEFAULT: '#747572',
-        },
-				neutral: {
-					DEFAULT: '#e5ebea', 
-				},
-				accent: {
-					DEFAULT: '#b098a4', 
-				},
-			}
+				primary: '#748465',
+				secondary: '#dbd9db',
+				tertiary: '#747572',
+				neutral: '#e5ebea',
+				accent: '#b098a4',
+			},
 		}
 	},
-  plugins: [],
-}
+	plugins: [],
+};
+
