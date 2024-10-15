@@ -1,0 +1,30 @@
+name: deploy
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+  schedule:
+    - cron: "17 9 * * *"
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v4
+
+      - name: setup dependencies
+        uses: ./.github/actions/setup
+
+      - name: build frontend
+        run: |
+          cd frontend
+          npm run build
+          cd ..
+
+      - name: deploy to modal
+        env:
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+          MODAL_ENVIRONMENT: vishy-dev
+        run: modal deploy seamless.py
