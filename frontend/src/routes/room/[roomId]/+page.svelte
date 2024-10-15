@@ -48,7 +48,10 @@
 		connectSocket();
 		pollMembers = setInterval(getRoomInfo, 3000);
 
-		return () => pollMembers && clearInterval(pollMembers);
+		return () => {
+			if (pollMembers) clearInterval(pollMembers);
+			if (socket) socket.close();
+		};
 	});
 
 	const connectSocket = () => {
@@ -56,12 +59,6 @@
 
 		socket.onopen = async () => {
 			connected = true;
-			await socket.send(
-				JSON.stringify({
-					user_id: userId,
-					room_id: roomId
-				})
-			);
 		};
 
 		socket.onmessage = (event) => {
