@@ -95,7 +95,8 @@
 		socket.send(
 			JSON.stringify({
 				user_id: userId,
-				room_id: roomId
+				room_id: roomId,
+				lang: lang
 			})
 		);
 	};

@@ -83,6 +83,7 @@ class SeamlessM4T:
         return room_id, room_name
 
     def join_room(self, user_id: str, room_id: str):
+        print(f"{user_id} joined {room_id}")
         if user_id not in rooms[room_id]["members"]:
             rooms[room_id] = {
                 "name": rooms[room_id]["name"],
@@ -200,8 +201,7 @@ class SeamlessM4T:
             user_data = await websocket.receive_json()
             user_id = user_data.get("user_id")
             room_id = user_data.get("room_id")
-
-            tgt_lang = users.get(user_id)["lang"]
+            tgt_lang = user_data.get("lang")
 
             async def send_loop():
                 while True:
