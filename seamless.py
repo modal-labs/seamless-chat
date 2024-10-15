@@ -7,14 +7,14 @@ from fastapi import FastAPI, Form, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
+from rooms import room_names
+
 app = modal.App("seamless-chat")
 
-backend_image = modal.Image.debian_slim().apt_install("ffmpeg").pip_install(
-    "transformers", 
-    "sentencepiece", 
-    "torchaudio", 
-    "soundfile", 
-    "numpy"
+backend_image = (
+    modal.Image.debian_slim()
+    .apt_install("ffmpeg")
+    .pip_install("transformers", "sentencepiece", "torchaudio", "soundfile", "numpy")
 )
 
 with backend_image.imports():
@@ -24,7 +24,7 @@ with backend_image.imports():
     import soundfile
     import numpy
     from huggingface_hub import snapshot_download
-    from fastapi import FastAPI, Form, WebSocket
+    from fastapi import FastAPI, Form, WebSocket, HTTPException
     from transformers import AutoProcessor, SeamlessM4Tv2Model
 
 
@@ -37,39 +37,33 @@ with frontend_image.imports():
 
 users = modal.Dict.from_name("seamless-users", create_if_missing=True)
 rooms = modal.Dict.from_name("seamless-rooms", create_if_missing=True)
-message_content = modal.Dict.from_name("seamless-message-content", create_if_missing=True)
+message_content = modal.Dict.from_name(
+    "seamless-message-content", create_if_missing=True
+)
 message_queue = modal.Queue.from_name("seamless-message-queue", create_if_missing=True)
 
-
-room_names = [
-    'dog', 'cat', 'lion', 'tiger', 'elephant', 'giraffe', 'zebra', 'monkey', 'rabbit', 
-    'deer', 'bear', 'wolf', 'fox', 'squirrel', 'kangaroo', 'panda', 'koala', 
-    'buffalo', 'crocodile', 'alligator', 'penguin', 
-    'flamingo', 'eagle', 'owl', 'parrot', 'peacock', 'sparrow', 'duck', 'goose', 
-    'chicken', 'turkey', 'cow', 'sheep', 'goat', 'horse', 'donkey', 'pig', 'bat', 
-    'shark', 'whale', 'dolphin', 'octopus', 'jellyfish', 'crab', 'lobster', 'turtle', 
-    'snake', 'frog', 'lizard'
-]
-
 @app.cls(
-    gpu="H100", 
+    gpu="H100",
     image=backend_image,
     container_idle_timeout=240,
     timeout=3600,
     concurrency_limit=5,
     allow_concurrent_inputs=5,
-    keep_warm=1
+    keep_warm=1,
 )
 class SeamlessM4T:
     @modal.build()
     def build(self):
         snapshot_download("facebook/seamless-m4t-v2-large")
-    
+
     @modal.enter()
     def enter(self):
         self.processor = AutoProcessor.from_pretrained("facebook/seamless-m4t-v2-large")
-        self.model = torch.compile(SeamlessM4Tv2Model.from_pretrained("facebook/seamless-m4t-v2-large").to("cuda"))
-    
+        self.model = torch.compile(
+            SeamlessM4Tv2Model.from_pretrained("facebook/seamless-m4t-v2-large").to(
+                "cuda"
+            )
+        )
 
     def create_user(self, user_name: str, lang: str):
         user_id = str(uuid.uuid4())
@@ -78,7 +72,7 @@ class SeamlessM4T:
             "lang": lang,
         }
         return user_id
-    
+
     def create_room(self):
         room_id = str(uuid.uuid4())
         room_name = random.choice(room_names)
@@ -94,36 +88,50 @@ class SeamlessM4T:
                 "name": rooms[room_id]["name"],
                 "members": rooms[room_id]["members"] + [user_id],
             }
-
         return rooms[room_id]
 
     def leave_room(self, user_id: str, room_id: str):
+        print(f"{user_id} left {room_id}")
         if user_id in rooms[room_id]["members"]:
-            members = [member for member in rooms[room_id]["members"] if member != user_id]
+            members = [
+                member for member in rooms[room_id]["members"] if member != user_id
+            ]
             rooms[room_id] = {
                 "name": rooms[room_id]["name"],
                 "members": members,
             }
 
     def _translate(self, inputs, tgt_lang: str):
-        output = self.model.generate(**inputs, tgt_lang=tgt_lang, return_intermediate_token_ids=True)
+        output = self.model.generate(
+            **inputs, tgt_lang=tgt_lang, return_intermediate_token_ids=True
+        )
         audio_array = output[0].cpu().numpy().squeeze()
         text = self.processor.decode(output[2].tolist()[0], skip_special_tokens=True)
         return text, audio_array
-    
+
     def translate_text(self, text: str, src_lang: str, tgt_lang: str):
-        inputs = self.processor(text=text, src_lang=src_lang, return_tensors="pt").to("cuda")
+        inputs = self.processor(text=text, src_lang=src_lang, return_tensors="pt").to(
+            "cuda"
+        )
         return self._translate(inputs, tgt_lang)
-    
+
     def translate_audio(self, audio: str, tgt_lang: str):
         audio_buffer = io.BytesIO(base64.b64decode(audio.split(",")[1]))
         audio, orig_freq = torchaudio.load(audio_buffer)
         audio = torchaudio.functional.resample(audio, orig_freq, 16000)
 
-        inputs = self.processor(audios=audio, return_tensors="pt", sampling_rate=16000).to("cuda")
+        inputs = self.processor(
+            audios=audio, return_tensors="pt", sampling_rate=16000
+        ).to("cuda")
         return self._translate(inputs, tgt_lang)
 
-    def send_message(self, user_id: str, room_id: str, message_type: Literal["text", "audio"], content: str):
+    def send_message(
+        self,
+        user_id: str,
+        room_id: str,
+        message_type: Literal["text", "audio"],
+        content: str,
+    ):
         user = users.get(user_id)
         message_id = str(uuid.uuid4())
         message_content[message_id] = content
@@ -135,10 +143,9 @@ class SeamlessM4T:
                 "user_name": user["name"],
                 "message_type": message_type,
                 "message_id": message_id,
-                "lang": user["lang"]
+                "lang": user["lang"],
             }
-            message_queue.put(message_data, partition=member_id)        
-
+            message_queue.put(message_data, partition=member_id)
 
     @modal.asgi_app()
     def asgi_app(self):
@@ -153,23 +160,37 @@ class SeamlessM4T:
         @app.post("/create-room")
         async def create_room():
             room_id, room_name = self.create_room()
+
             return {"roomId": room_id}
-        
+
         @app.post("/join-room")
-        async def join_room(user_name: str = Form(...), lang: str = Form(...), room_id: str = Form(...)):
+        async def join_room(
+            user_name: str = Form(...), lang: str = Form(...), room_id: str = Form(...)
+        ):
+            if room_id not in rooms:
+                raise HTTPException(status_code=404, detail="Room not found")
+
             user_id = self.create_user(user_name, lang)
             room = self.join_room(user_id, room_id)
+
             return {"userId": user_id}
-        
+
         @app.get("/rooms")
         async def get_rooms():
+
             return {room_id: rooms[room_id] for room_id in rooms.keys()}
 
         @app.get("/room-info")
         async def get_room_info(room_id: str):
+            if room_id not in rooms:
+
+                raise HTTPException(status_code=404, detail="Room not found")
+
             return {
                 "name": rooms[room_id]["name"],
-                "members": {user_id: users[user_id] for user_id in rooms[room_id]["members"]}
+                "members": {
+                    user_id: users[user_id] for user_id in rooms[room_id]["members"]
+                },
             }
 
         @app.websocket("/chat")
@@ -203,7 +224,9 @@ class SeamlessM4T:
                     }
 
                     if message_type == "text":
-                        text, audio_array = self.translate_text(content, src_lang, tgt_lang)
+                        text, audio_array = self.translate_text(
+                            content, src_lang, tgt_lang
+                        )
                     elif message_type == "audio":
                         text, audio_array = self.translate_audio(content, tgt_lang)
 
@@ -212,11 +235,12 @@ class SeamlessM4T:
 
                     await websocket.send_json(message_data)
 
-
             async def recv_loop():
                 while True:
                     message = await websocket.receive_json()
-                    self.send_message(user_id, room_id, message["message_type"], message["content"])
+                    self.send_message(
+                        user_id, room_id, message["message_type"], message["content"]
+                    )
 
             try:
                 tasks = [
@@ -236,32 +260,23 @@ class SeamlessM4T:
                 for task in tasks:
                     task.cancel()
                 await asyncio.gather(*tasks, return_exceptions=True)
-        
+
         return app
-    
-    @modal.method()
-    def test_translate_text(self):
-        text, audio_array = self.translate_text.remote("Hello, world!", "eng", "cmn")
-        return text
+
 
 base_path = Path(__file__).parent
 static_path = base_path.joinpath("frontend", "build")
+
 
 @app.function(
     mounts=[modal.Mount.from_local_dir(static_path, remote_path="/assets")],
     image=frontend_image,
     allow_concurrent_inputs=10,
-    keep_warm=2
+    keep_warm=2,
 )
 @modal.asgi_app(custom_domains=["seamless.modal.chat"])
 def frontend():
     web_app = FastAPI()
     web_app.mount("/", StaticFiles(directory="/assets", html=True))
 
-    return web_app  
-
-
-@app.local_entrypoint()
-def main():
-    SeamlessM4T.test_translate_text.remote()
-    print(text)
+    return web_app
