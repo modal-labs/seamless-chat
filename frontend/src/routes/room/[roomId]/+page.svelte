@@ -68,7 +68,6 @@
 
 		socket.onclose = async () => {
 			connected = false;
-			socket.close();
 			leaveRoom();
 		};
 	};
