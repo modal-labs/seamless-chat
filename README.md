@@ -1,8 +1,8 @@
-# Seamless Chat: Run multi-lingual chat rooms with SeamlessM4T-V2
+# Seamless Chat: Run multilingual chat rooms with SeamlessM4T-V2
 
 Ever wanted to chat with your friends from different parts of the world, but everyone speaks different languages? Introducing [Seamless Chat](https://github.com/modal-labs/seamless-chat), a speech-to-speech chat app that lets you chat with all your friends in their language at the same time!
 
-Seamless Chat is powered by Meta's [SeamlessM4T-V2](https://github.com/facebookresearch/seamless_communication/tree/main), a state-of-the-art multi-lingual speech-to-speech model that supports text and speech translation for over 20 languages. Thanks to modal's websocket support and distributed object stores, we're able to create a scalable, low-latency chat interface. Try out Seamless-Chat yourself [here](https://seamless.modal.chat)!
+Seamless Chat is powered by Meta's [SeamlessM4T-V2](https://github.com/facebookresearch/seamless_communication/tree/main), a state-of-the-art multilingual speech-to-speech model that supports text and speech translation for over 20 languages. Thanks to modal's websocket support and distributed object stores, we're able to create a scalable, low-latency chat interface. Try out Seamless-Chat yourself [here](https://seamless.modal.chat)!
 
 <div style="display: flex; justify-content: space-around;">
   <img src="https://modal-public-assets.s3.amazonaws.com/seamless-chat/bob.png" alt="Seamless-Chat Bob" width="48%">
