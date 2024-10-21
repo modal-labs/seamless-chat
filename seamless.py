@@ -80,7 +80,7 @@ class SeamlessM4T:
             "name": room_name,
             "members": [],
         }
-        return room_id, room_name
+        return room_id
 
     def join_room(self, user_id: str, room_id: str):
         print(f"{user_id} joined {room_id}")
@@ -97,6 +97,9 @@ class SeamlessM4T:
             members = [
                 member for member in rooms[room_id]["members"] if member != user_id
             ]
+            if len(members) == 0:
+                rooms.delete(room_id)
+                return
             rooms[room_id] = {
                 "name": rooms[room_id]["name"],
                 "members": members,
@@ -160,7 +163,7 @@ class SeamlessM4T:
 
         @app.post("/create-room")
         async def create_room():
-            room_id, room_name = self.create_room()
+            room_id = self.create_room()
 
             return {"roomId": room_id}
 
@@ -205,10 +208,7 @@ class SeamlessM4T:
 
             async def send_loop():
                 while True:
-                    message = message_queue.get(partition=user_id, block=False)
-                    if message is None:
-                        await asyncio.sleep(0.01)
-                        continue
+                    message = await message_queue.get.aio(partition=user_id)
 
                     print(f"Received message {message} for {user_id}")
 
@@ -255,6 +255,7 @@ class SeamlessM4T:
                 print(f"Socket error: {e}")
                 await websocket.close(code=1011)
             finally:
+                print(f"Cleaning up {user_id} in {room_id}")
                 if user_id and room_id:
                     self.leave_room(user_id, room_id)
                 for task in tasks:
