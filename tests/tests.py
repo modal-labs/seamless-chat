@@ -1,7 +1,7 @@
-import pytest, asyncio, aiohttp, json, pytest_asyncio
+import pytest, asyncio, aiohttp, pytest_asyncio, os
 from typing import Dict, Any
 
-BASE_URL = "https://modal-labs-vishy-dev--seamless-chat-seamlessm4t-asgi-app.modal.run"
+BASE_URL = os.getenv("PUBLIC_BACKEND_URL")
 
 @pytest_asyncio.fixture
 async def session():
@@ -81,7 +81,7 @@ async def test_websocket_chat():
 
             # Connect to WebSocket
             async with session.ws_connect(f"{BASE_URL}/chat") as ws:
-                await ws.send_json({"user_id": user_id, "room_id": room_id})
+                await ws.send_json({"user_id": user_id, "room_id": room_id, "lang": lang})
 
                 # Send a message
                 await ws.send_json({
@@ -108,8 +108,6 @@ async def test_websocket_chat():
         assert "audio" in result
         assert isinstance(result["audio"], list)
 
-    print(results)
-    
 
 if __name__ == "__main__":
     pytest.main([__file__])

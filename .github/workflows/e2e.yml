@@ -1,0 +1,30 @@
+name: e2e test
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 9 * * *"
+jobs:
+  test:
+    name: e2etest
+    runs-on: ubuntu-latest
+    env:
+      MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+      MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+      MODAL_ENVIRONMENT: vishy-dev
+      PUBLIC_BACKEND_URL: https://modal-labs-vishy-dev--seamless-chat-seamlessm4t-asgi-app-dev.modal.run
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v4
+
+      - name: setup dependencies
+        uses: ./.github/actions/setup
+
+      - name: run tests
+        run: |
+          pip install -r tests/requirements.txt
+          modal serve seamless.py
+          pytest tests/tests.py
