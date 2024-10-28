@@ -1,8 +1,12 @@
 # Seamless Chat: Run multilingual chat rooms with SeamlessM4T-V2
 
-Ever wanted to chat with your friends from different parts of the world, but everyone speaks different languages? Introducing [Seamless Chat](https://github.com/modal-labs/seamless-chat), a speech-to-speech chat app that lets you chat with all your friends in their language at the same time!
+Chat with friends from around the world without speaking the same language!
 
-Seamless Chat is powered by Meta's [SeamlessM4T-V2](https://github.com/facebookresearch/seamless_communication/tree/main), a state-of-the-art multilingual speech-to-speech model that supports text and speech translation for over 20 languages. Thanks to modal's websocket support and distributed object stores, we're able to create a scalable, low-latency chat interface. Try out Seamless-Chat yourself [here](https://seamless.modal.chat)!
+Introducing [Seamless Chat](https://github.com/modal-labs/seamless-chat), a speech-to-speech chat app that lets you chat with all your friends in their language at the same time.
+
+Seamless Chat is powered by Meta's [SeamlessM4T-V2](https://github.com/facebookresearch/seamless_communication/tree/main), a state-of-the-art multilingual speech-to-speech model that supports text and speech translation for over 20 languages. Thanks to Modal's WebSocket support and distributed object stores, we're able to create a scalable, low-latency chat interface.
+
+Try out Seamless-Chat yourself [here](https://seamless.modal.chat)!
 
 <div style="display: flex; justify-content: space-around;">
   <img src="https://modal-public-assets.s3.amazonaws.com/seamless-chat/bob.png" alt="Seamless-Chat Bob" width="48%">
@@ -11,11 +15,11 @@ Seamless Chat is powered by Meta's [SeamlessM4T-V2](https://github.com/facebookr
 
 ## Code Overview
 
-Seamless Chat's frontend and backend are both entirely deployed on Modal. The frontend is a standard SvelteKit app, while the backend is a FastAPI server that handles websockets for chat connections and GPU accelerated inference. Let's take a look at each of these in more detail!
+Seamless Chat's frontend and backend are both entirely deployed on Modal. The frontend is a standard SvelteKit app and the backend is a FastAPI server that handles WebSockets for chat connections and GPU accelerated inference. Let's take a look at each of these in more detail!
 
-### Backend
+### Chat Backend - SeamlessM4T on GPUs
 
-The code that powers Seamless Chat's backend is defined with Modal's class syntax and the `@app.cls` decorator. With the modal class, we can define methods for loading the SeamlessM4T model once our container is constructed. This allows us to manage multiple websocket connections in a shared container while managing the overhead of starting new containers. We can also specify the maximum number of concurrent connections with the `allow_concurrent_inputs` property.
+The code that powers Seamless Chat's backend is defined with Modal's class syntax and the `@app.cls` decorator. With the modal class, we can define methods for loading the SeamlessM4T model once our container is constructed. This allows us to manage multiple WebSocket connections in a shared container while managing the overhead of starting new containers. We can also specify the maximum number of concurrent connections with the `allow_concurrent_inputs` property.
 
 ```python
 @app.cls(
@@ -38,12 +42,13 @@ With the `@modal.build()` decorator, we download the model into our container im
 def enter(self):
         self.processor = AutoProcessor.from_pretrained("facebook/seamless-m4t-v2-large")
         self.model = SeamlessM4Tv2Model.from_pretrained("facebook/seamless-m4t-v2-large").to("cuda")
-
 ```
 
-### FastAPI Server
+### Chat Backend - FastAPI Server
 
-Modal makes it easy to define a ASGI server with the `@modal.asgi_app()` decorator which specifies a method that returns a `FastAPI` app. The main component of our server is our websocket endpoint for handling chat connections. Each socket connection needs to listen for incoming messages from the user along with outgoing messages from other users in the room. Using `asyncio`, we can handle both of these tasks concurrently, while also gracefully handling disconnections and errors.
+Modal makes it easy to define a ASGI server: just wrap the `@modal.asgi_app()` decorator around a function that returns a `FastAPI` app.
+
+The main component of our server is our WebSocket endpoint for handling chat connections. Each socket connection needs to listen for incoming messages from the user along with outgoing messages from other users in the room. Using `asyncio`, we can handle both of these tasks concurrently, while also gracefully handling disconnections and errors.
 
 ```python
 @app.websocket("/chat")
@@ -78,11 +83,11 @@ async def chat(websocket: WebSocket):
         await asyncio.gather(*tasks, return_exceptions=True)
 ```
 
-### Distributed Queues
+### Chat Backend - Distributed Queues
 
 As our application scales up, we may have multiple socket connections across different containers, so we need some way to send and synchronize messages between users. To handle this, we can take advantage of Modal's [distributed queues](https://modal.com/docs/guide/dicts-and-queues#modal-queues).
 
-We can define a queue to store messages, with a separate FIFO partition for each user. When a user sends a message, we append it to the partition associated with each member of the room. The `send_loop` method repeatedly fetches new messages from their partition and translates the messages into their target language. In an asynchronous context, we simply use the `.aio()` function suffix to fetch messages from the queue. Finally, we pass the messages through the translation model and send the response back to the user.
+We can define a Modal Queue to store messages, with a separate FIFO partition for each user. When a user sends a message, we append it to the partition associated with each member of the room. The `send_loop` method repeatedly fetches new messages from their partition and translates the messages into their target language. In an asynchronous context, we simply use the `.aio()` function suffix to fetch messages from the queue. Finally, we pass the messages through the translation model and send the response back to the user.
 
 ```python
 
@@ -106,9 +111,9 @@ async def send_loop():
         await websocket.send_json(message_data)
 ```
 
-### Frontend
+### Chat Frontend - SvelteKit
 
-Seamless Chat's frontend is a simple static SvelteKit application. We define a Modal function that is called through a webendpoint with the same `@modal.asgi_app()` decorator. The function simply serves the frontend's static files in the `frontend/build` directory after running `npm run build` in the `frontend` directory.
+Seamless Chat's frontend is a simple static SvelteKit application. We define a Modal function that is called through a `web_endpoint` with the same `@modal.asgi_app()` decorator. The function simply serves the frontend's static files in the `frontend/build` directory after running `npm run build` in the `frontend` directory.
 
 ```python
 @app.function(
