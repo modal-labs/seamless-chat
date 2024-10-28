@@ -98,7 +98,7 @@ class SeamlessM4T:
                 member for member in rooms[room_id]["members"] if member != user_id
             ]
             if len(members) == 0:
-                rooms.delete(room_id)
+                rooms.pop(room_id)
                 return
             rooms[room_id] = {
                 "name": rooms[room_id]["name"],
