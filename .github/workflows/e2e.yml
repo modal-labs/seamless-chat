@@ -23,6 +23,10 @@ jobs:
       - name: setup dependencies
         uses: ./.github/actions/setup
 
+      - name: build frontend
+        working-directory: frontend
+        run: npm run build
+
       - name: run tests
         run: |
           pip install -r tests/requirements.txt

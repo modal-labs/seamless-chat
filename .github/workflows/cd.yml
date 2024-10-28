@@ -9,6 +9,11 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+      MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+      MODAL_ENVIRONMENT: vishy-dev
+      PUBLIC_BACKEND_URL: https://modal-labs-vishy-dev--seamless-chat-seamlessm4t-asgi-app.modal.run
     steps:
       - name: checkout repo
         uses: actions/checkout@v4
@@ -18,13 +23,7 @@ jobs:
 
       - name: build frontend
         working-directory: frontend
-        env:
-          PUBLIC_BACKEND_URL: https://modal-labs-vishy-dev--seamless-chat-seamlessm4t-asgi-app.modal.run
         run: npm run build
 
       - name: deploy to modal
-        env:
-          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
-          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
-          MODAL_ENVIRONMENT: vishy-dev
         run: modal deploy seamless.py
