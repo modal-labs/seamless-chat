@@ -9,8 +9,8 @@ Seamless Chat is powered by Meta's [SeamlessM4T-V2](https://github.com/facebookr
 Try out Seamless-Chat yourself [here](https://seamless.modal.chat)!
 
 <div style="display: flex; justify-content: space-around;">
-  <img src="https://modal-public-assets.s3.amazonaws.com/seamless-chat/bob.png" alt="Seamless-Chat Bob" width="48%">
-  <img src="https://modal-public-assets.s3.amazonaws.com/seamless-chat/alice.png" alt="Seamless-Chat Alice" width="48%">
+  <img src="https://modal-cdn.com/seamless-chat/bob.png" alt="Seamless-Chat Bob" width="48%">
+  <img src="https://modal-cdn.com/seamless-chat/alice.png" alt="Seamless-Chat Alice" width="48%">
 </div>
 
 ## Code Overview
