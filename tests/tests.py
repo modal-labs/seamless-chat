@@ -91,6 +91,8 @@ async def test_websocket_chat():
 
                 # Wait for a response
                 response = await ws.receive_json(timeout=10)
+                await ws.close()
+                
                 return response
 
     # Test with two users
@@ -107,7 +109,7 @@ async def test_websocket_chat():
         assert "text" in result
         assert "audio" in result
         assert isinstance(result["audio"], list)
-
+    
 
 if __name__ == "__main__":
     pytest.main([__file__])
