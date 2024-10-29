@@ -32,6 +32,7 @@ frontend_image = modal.Image.debian_slim().pip_install("jinja2")
 
 with frontend_image.imports():
     from fastapi import FastAPI
+    from fastapi.responses import FileResponse
     from jinja2 import Template
 
 
@@ -278,6 +279,11 @@ static_path = base_path.joinpath("frontend", "build")
 @modal.asgi_app(custom_domains=["seamless.modal.chat"])
 def frontend():
     web_app = FastAPI()
+
+    @web_app.get("/room/{room_id}")
+    async def get_room(room_id: str):
+        return FileResponse("/assets/index.html")
+
     web_app.mount("/", StaticFiles(directory="/assets", html=True))
 
     return web_app
