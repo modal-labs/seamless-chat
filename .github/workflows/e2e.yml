@@ -31,5 +31,5 @@ jobs:
         run: |
           pip install -r tests/requirements.txt
           modal serve seamless.py &
-          sleep 20
+          sleep 30
           pytest tests/tests.py
