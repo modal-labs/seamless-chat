@@ -17,19 +17,12 @@ async def test_create_room(session):
         assert isinstance(data["roomId"], str)
 
 @pytest.mark.asyncio
-async def test_join_room(session):
-    # First, create a room
-    async with session.post(f"{BASE_URL}/create-room") as response:
-        room_data = await response.json()
-        room_id = room_data["roomId"]
-
-    # Now, join the room
-    join_data = {
+async def test_create_user(session):
+    user_data = {
         "user_name": "TestUser",
-        "lang": "eng",
-        "room_id": room_id
+        "lang": "eng"
     }
-    async with session.post(f"{BASE_URL}/join-room", data=join_data) as response:
+    async with session.post(f"{BASE_URL}/create-user", data=user_data) as response:
         assert response.status == 200
         data = await response.json()
         assert "userId" in data
@@ -70,12 +63,11 @@ async def test_websocket_chat():
                 room_data = await response.json()
                 room_id = room_data["roomId"]
 
-            join_data = {
+            user_data = {
                 "user_name": user_name,
-                "lang": lang,
-                "room_id": room_id
+                "lang": lang
             }
-            async with session.post(f"{BASE_URL}/join-room", data=join_data) as response:
+            async with session.post(f"{BASE_URL}/create-user", data=user_data) as response:
                 user_data = await response.json()
                 user_id = user_data["userId"]
 

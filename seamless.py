@@ -1,7 +1,5 @@
 import modal, asyncio, uuid, random, base64
 
-from pydantic import BaseModel
-from typing import Literal, Optional
 from pathlib import Path
 from fastapi import FastAPI, Form, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
@@ -21,8 +19,6 @@ with backend_image.imports():
     import io
     import torch
     import torchaudio
-    import soundfile
-    import numpy
     from huggingface_hub import snapshot_download
     from fastapi import FastAPI, Form, WebSocket, HTTPException
     from transformers import AutoProcessor, SeamlessM4Tv2Model
@@ -33,7 +29,6 @@ frontend_image = modal.Image.debian_slim().pip_install("jinja2")
 with frontend_image.imports():
     from fastapi import FastAPI
     from fastapi.responses import FileResponse
-    from jinja2 import Template
 
 
 users = modal.Dict.from_name("seamless-users", create_if_missing=True)
@@ -165,30 +160,20 @@ class SeamlessM4T:
         @app.post("/create-room")
         async def create_room():
             room_id = self.create_room()
-
             return {"roomId": room_id}
 
-        @app.post("/join-room")
-        async def join_room(
-            user_name: str = Form(...), lang: str = Form(...), room_id: str = Form(...)
-        ):
-            if room_id not in rooms:
-                raise HTTPException(status_code=404, detail="Room not found")
-
+        @app.post("/create-user")
+        async def create_user(user_name: str = Form(...), lang: str = Form(...)):
             user_id = self.create_user(user_name, lang)
-            room = self.join_room(user_id, room_id)
-
             return {"userId": user_id}
 
         @app.get("/rooms")
         async def get_rooms():
-
             return {room_id: rooms[room_id] for room_id in rooms.keys()}
 
         @app.get("/room-info")
         async def get_room_info(room_id: str):
             if room_id not in rooms:
-
                 raise HTTPException(status_code=404, detail="Room not found")
 
             return {
@@ -206,6 +191,8 @@ class SeamlessM4T:
             user_id = user_data.get("user_id")
             room_id = user_data.get("room_id")
             tgt_lang = user_data.get("lang")
+
+            self.join_room(user_id, room_id)
 
             async def send_loop():
                 while True:
@@ -234,6 +221,8 @@ class SeamlessM4T:
                     message_data["text"] = text
                     message_data["audio"] = audio_array.tolist()
 
+                    print(f"Sending message '{message_data['text']}' from {message_data['user_id']} in {room_id}")
+
                     await websocket.send_json(message_data)
 
             async def recv_loop():
@@ -242,7 +231,6 @@ class SeamlessM4T:
                     self.send_message(
                         user_id, room_id, message["message_type"], message["content"]
                     )
-
             try:
                 tasks = [
                     asyncio.create_task(send_loop()),

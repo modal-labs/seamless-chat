@@ -82,10 +82,9 @@
 	const joinRoom = async () => {
 		if (!userName || !lang) return;
 		const formData = new FormData();
-		formData.append('room_id', roomId);
 		formData.append('user_name', userName);
 		formData.append('lang', lang);
-		const response = await fetch(`${PUBLIC_BACKEND_URL}/join-room`, {
+		const response = await fetch(`${PUBLIC_BACKEND_URL}/create-user`, {
 			method: 'POST',
 			body: formData
 		});
