@@ -19,7 +19,7 @@ Seamless Chat's frontend and backend are both entirely deployed on Modal. The fr
 
 ### Chat Backend - SeamlessM4T on GPUs
 
-The code that powers Seamless Chat's backend is defined with Modal's class syntax and the `@app.cls` decorator. With the modal class, we can define methods for loading the SeamlessM4T model once our container is constructed. This allows us to manage multiple WebSocket connections in a shared container while managing the overhead of starting new containers. We can also specify the maximum number of concurrent connections with the `allow_concurrent_inputs` property.
+The code that powers Seamless Chat's backend is defined with Modal's class syntax and the `@app.cls` decorator. We define methods on that class for managing model loading, as described below. This allows us to manage multiple WebSocket connections in a shared container while managing the overhead of starting new containers. We can also specify the maximum number of concurrent connections with the `allow_concurrent_inputs` property.
 
 ```python
 @app.cls(
