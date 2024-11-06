@@ -199,8 +199,6 @@ class SeamlessM4T:
                 while True:
                     message = await message_queue.get.aio(partition=user_id)
 
-                    print(f"Received message {message} for {user_id}")
-
                     content = message_content.get(message["message_id"])
                     message_type = message["message_type"]
                     src_lang = message["lang"]
@@ -222,7 +220,7 @@ class SeamlessM4T:
                     message_data["text"] = text
                     message_data["audio"] = audio_array.tolist()
 
-                    print(f"Sending message '{message_data['text']}' from {message_data['user_id']} in {room_id}")
+                    print(f"Sending message '{message_data['text']}' from {message_data['userId']} in {room_id}")
 
                     await websocket.send_json(message_data)
 
