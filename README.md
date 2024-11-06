@@ -35,8 +35,8 @@ With the `@modal.build()` decorator, we download the model into our container im
 
 ```python notest
 @modal.build()
-    def build(self):
-        snapshot_download("facebook/seamless-m4t-v2-large")
+def build(self):
+    snapshot_download("facebook/seamless-m4t-v2-large")
 
 @modal.enter()
 def enter(self):
