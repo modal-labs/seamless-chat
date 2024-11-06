@@ -257,11 +257,11 @@ class SeamlessM4T:
                 await websocket.close(code=1011)
             finally:
                 print(f"Cleaning up {user_id} in {room_id}")
-                if user_id and room_id:
-                    self.leave_room(user_id, room_id)
                 for task in tasks:
                     task.cancel()
                 await asyncio.gather(*tasks, return_exceptions=True)
+                if user_id and room_id:
+                    self.leave_room(user_id, room_id)
 
         return app
 

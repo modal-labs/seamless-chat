@@ -91,7 +91,6 @@ async def test_websocket_chat():
 
                 # Wait for a response
                 response = await ws.receive_json(timeout=10)
-                await ws.close()
 
                 return response
 
