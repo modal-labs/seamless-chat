@@ -25,7 +25,7 @@ The code that powers Seamless Chat's backend is defined with Modal's class synta
 @app.cls(
     gpu="H100",
     allow_concurrent_inputs=10,
-    ...
+    # and more
 )
 class SeamlessM4T:
     ...
@@ -33,15 +33,15 @@ class SeamlessM4T:
 
 With the `@modal.build()` decorator, we download the model into our container image, and with the `@modal.enter()` decorator, we load the model into memory once the container is instantiated.
 
-```python
+```python notest
 @modal.build()
     def build(self):
         snapshot_download("facebook/seamless-m4t-v2-large")
 
 @modal.enter()
 def enter(self):
-        self.processor = AutoProcessor.from_pretrained("facebook/seamless-m4t-v2-large")
-        self.model = SeamlessM4Tv2Model.from_pretrained("facebook/seamless-m4t-v2-large").to("cuda")
+    self.processor = AutoProcessor.from_pretrained("facebook/seamless-m4t-v2-large")
+    self.model = SeamlessM4Tv2Model.from_pretrained("facebook/seamless-m4t-v2-large").to("cuda")
 ```
 
 ### Chat Backend - FastAPI Server
@@ -50,7 +50,7 @@ Modal makes it easy to define a ASGI server: just wrap the `@modal.asgi_app()` d
 
 The main component of our server is our WebSocket endpoint for handling chat connections. Each socket connection needs to listen for incoming messages from the user along with outgoing messages from other users in the room. Using `asyncio`, we can handle both of these tasks concurrently, while also gracefully handling disconnections and errors.
 
-```python
+```python notest
 @app.websocket("/chat")
 async def chat(websocket: WebSocket):
     await websocket.accept()
@@ -117,8 +117,8 @@ Seamless Chat's frontend is a simple static SvelteKit application. We define a M
 
 ```python
 @app.function(
-    mounts=[modal.Mount.from_local_dir(static_path, remote_path="/assets")],
-    ...
+    mounts=[modal.Mount.from_local_dir("some/static/path", remote_path="/assets")],
+    # and more
 )
 @modal.asgi_app(custom_domains=["seamless.modal.chat"])
 def frontend():
